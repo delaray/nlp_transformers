@@ -81,14 +81,14 @@ vocab_size = 20000
 # Only consider the first 200 words of each movie review
 maxlen = 200
 
-(x_train, y_train), (x_val, y_val) = keras.datasets.imdb.load_data(num_words=vocab_size)
-print(len(x_train), "Training sequences")
-print(len(x_val), "Validation sequences")
+def get_and_prepare_data(vocab_size=vocab_size):
+    (x_train, y_train), (x_val, y_val) = keras.datasets.imdb.load_data(num_words=vocab_size)
+    print(len(x_train), "Training sequences")
+    print(len(x_val), "Validation sequences")
+    x_train = keras.preprocessing.sequence.pad_sequences(x_train, maxlen=maxlen)
+    x_val = keras.preprocessing.sequence.pad_sequences(x_val, maxlen=maxlen)
+    return x_train, y_train, x_val, y_val
 
-x_train = keras.preprocessing.sequence.pad_sequences(x_train, maxlen=maxlen)
-x_val = keras.preprocessing.sequence.pad_sequences(x_val, maxlen=maxlen)
-
-        
 #--------------------------------------------------------------------------
 # Create classifier model using transformer layer
 #--------------------------------------------------------------------------
@@ -106,31 +106,36 @@ num_heads = 2
 # Hidden layer size in feed forward network inside transformer
 ff_dim = 32  
 
-inputs = layers.Input(shape=(maxlen,))
-embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
+def create_keras_model():
+    inputs = layers.Input(shape=(maxlen,))
+    embedding_layer = TokenAndPositionEmbedding(maxlen, vocab_size, embed_dim)
 
-x = embedding_layer(inputs)
-transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
+    x = embedding_layer(inputs)
+    transformer_block = TransformerBlock(embed_dim, num_heads, ff_dim)
 
-x = transformer_block(x)
-x = layers.GlobalAveragePooling1D()(x)
-x = layers.Dropout(0.1)(x)
-x = layers.Dense(20, activation="relu")(x)
-x = layers.Dropout(0.1)(x)
+    x = transformer_block(x)
+    x = layers.GlobalAveragePooling1D()(x)
+    x = layers.Dropout(0.1)(x)
+    x = layers.Dense(20, activation="relu")(x)
+    x = layers.Dropout(0.1)(x)
 
-outputs = layers.Dense(2, activation="softmax")(x)
+    outputs = layers.Dense(2, activation="softmax")(x)
 
-model = keras.Model(inputs=inputs, outputs=outputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    return model
         
 #--------------------------------------------------------------------------
 # Train and Evaluate
 #--------------------------------------------------------------------------
 
-model.compile("adam", "sparse_categorical_crossentropy", metrics=["accuracy"])
+def train_keras_model(model, x_train, y_train, x_val, y_val):
+    model.compile("adam", "sparse_categorical_crossentropy", metrics=["accuracy"])
 
-history = model.fit(
-    x_train, y_train, batch_size=32, epochs=2, validation_data=(x_val, y_val)
-)
+    history = model.fit(x_train, y_train, batch_size=32, epochs=2,
+                        validation_data=(x_val, y_val))
+
+    return history
   
 #--------------------------------------------------------------------------
 # Endo of File
